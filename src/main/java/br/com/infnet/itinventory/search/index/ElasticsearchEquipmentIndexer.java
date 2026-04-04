@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -55,7 +57,6 @@ public class ElasticsearchEquipmentIndexer implements EquipmentIndexer {
             log.warn("Falha ao remover equipment id={} op=DELETE. Motivo={}", equipmentId, e.getMessage(), e);
         }
     }
-
     private EquipmentDoc toDoc(Equipment e) {
         return EquipmentDoc.builder()
                 .idEquipment(e.getId())
@@ -69,6 +70,8 @@ public class ElasticsearchEquipmentIndexer implements EquipmentIndexer {
                 .acquisitionDate(e.getAcquisitionDate())
                 .acquisitionValue(e.getAcquisitionValue() != null ? e.getAcquisitionValue().doubleValue() : null)
                 .description(buildDescription(e))
+                .ativo(e.getAtivo())
+                .criadoEm(e.getCriadoEm())
                 .build();
     }
 

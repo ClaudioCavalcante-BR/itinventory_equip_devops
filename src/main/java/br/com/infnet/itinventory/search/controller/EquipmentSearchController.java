@@ -1,10 +1,13 @@
 package br.com.infnet.itinventory.search.controller;
 
+import br.com.infnet.itinventory.repository.EquipmentRepository;
 import br.com.infnet.itinventory.search.doc.EquipmentDoc;
 import br.com.infnet.itinventory.search.dto.EquipmentSearchRequest;
+import br.com.infnet.itinventory.search.index.EquipmentIndexer;
 import br.com.infnet.itinventory.search.service.EquipmentSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.List;
@@ -16,6 +19,19 @@ import java.util.List;
 public class EquipmentSearchController {
 
     private final EquipmentSearchService searchService;
+
+    private final EquipmentRepository equipmentRepository;
+    private final EquipmentIndexer equipmentIndexer;
+
+
+    @GetMapping("/reindex")
+    public ResponseEntity<?> reindex() {
+        var all = equipmentRepository.findAll();
+        for (var e : all) {
+            equipmentIndexer.upsert(e.getId());
+        }
+        return ResponseEntity.ok("Reindex OK. Total: " + all.size());
+    }
 
     /**
      * Busca simples para front: /api/equipments/search?q=DELL&page=0&size=10

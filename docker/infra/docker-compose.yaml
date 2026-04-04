@@ -1,7 +1,12 @@
+name: itinventory_equip_devops
+
 services:
   mysql:
-    image: mysql:8.4
-    container_name: itinv_mysql
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: itinventory_equip_devops_mysql
+    container_name: itinventory_equip_devops_mysql
     ports:
       - "3307:3306"
     environment:
@@ -10,13 +15,12 @@ services:
       MYSQL_USER: itinv
       MYSQL_PASSWORD: itinv123
     volumes:
-      - ./init:/docker-entrypoint-initdb.d
-      - itinv_mysql_data:/var/lib/mysql
+      - itinventory_equip_devops_mysql_data:/var/lib/mysql
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
     networks:
-      - itinvnet
+      - itinventory_equip_devops_net
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
@@ -24,9 +28,30 @@ services:
       retries: 30
     restart: unless-stopped
 
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: itinventory_equip_devops_app
+    container_name: itinventory_equip_devops_app
+    ports:
+      - "8082:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - itinventory_equip_devops_net
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-    container_name: itinv_elasticsearch
+    container_name: itinventory_equip_devops_elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -35,7 +60,7 @@ services:
       - "9200:9200"
       - "9300:9300"
     networks:
-      - itinvnet
+      - itinventory_equip_devops_net
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health >/dev/null || exit 1"]
       interval: 10s
@@ -45,7 +70,7 @@ services:
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.15.0
-    container_name: itinv_kibana
+    container_name: itinventory_equip_devops_kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
@@ -54,12 +79,21 @@ services:
       elasticsearch:
         condition: service_healthy
     networks:
-      - itinvnet
+      - itinventory_equip_devops_net
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fs http://localhost:5601/api/status >/dev/null || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
 
   etl:
-    build: ./etl
-    container_name: itinv_etl
+    build:
+      context: ./etl
+      dockerfile: Dockerfile
+    image: itinventory_equip_devops_etl
+    container_name: itinventory_equip_devops_etl
     depends_on:
       mysql:
         condition: service_healthy
@@ -73,13 +107,12 @@ services:
       ELASTIC_HOST: http://elasticsearch:9200
       ELASTIC_INDEX: itinventory-equipments
     networks:
-      - itinvnet
+      - itinventory_equip_devops_net
     restart: "no"
 
 networks:
-  itinvnet:
-    name: itinvnet
+  itinventory_equip_devops_net:
     driver: bridge
 
 volumes:
-  itinv_mysql_data:
+  itinventory_equip_devops_mysql_data:

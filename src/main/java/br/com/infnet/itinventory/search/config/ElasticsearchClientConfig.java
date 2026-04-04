@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 
 @Configuration
 @ConditionalOnProperty(prefix = "search.es", name = "enabled", havingValue = "true")
@@ -37,7 +38,8 @@ public class ElasticsearchClientConfig {
     public ObjectMapper elasticsearchObjectMapper() {
         return new ObjectMapper()
                 .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     // injeta o ObjectMapper acima

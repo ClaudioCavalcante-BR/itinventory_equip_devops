@@ -1,0 +1,4 @@
+.git
+.idea
+target/*.jar.original
+docker/infra/backup

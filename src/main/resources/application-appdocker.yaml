@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:mysql://mysql:3306/itinventory_equip?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: itinv
+    password: itinv123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: America/Sao_Paulo
+    hibernate:
+      ddl-auto: none
+
+logging:
+  level:
+    org.hibernate.SQL: INFO
+
+search:
+  es:
+    enabled: false
+    host: elasticsearch
+    port: 9200
+    index: itinventory-equipments

@@ -3,6 +3,8 @@ package br.com.infnet.itinventory.model;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import lombok.Getter;
@@ -51,8 +53,32 @@ public class Equipment {
     @Column(name = "acquisition_value", precision = 15, scale = 2)
     private BigDecimal acquisitionValue;
 
+
+
+    @Column(name = "ativo", nullable = false)
+    private Boolean ativo;
+
+    @Column(name = "criado_em", nullable = false, updatable = false)
+    private LocalDateTime criadoEm;
+
+    @Column(name = "atualizado_em")
+    private LocalDateTime atualizadoEm;
+
     @PrePersist
+    private void prePersist() {
+        normalizeAssetNumber(); // garante padronização na criação
+        if (ativo == null) ativo = true;
+        if (criadoEm == null) criadoEm = LocalDateTime.now();
+    }
+
     @PreUpdate
+    private void preUpdate() {
+        normalizeAssetNumber(); // garante padronização na atualização
+        atualizadoEm = LocalDateTime.now();
+    }
+
+    //@PrePersist
+    //@PreUpdate
     private void normalizeAssetNumber() {
         if (assetNumber == null) return;
 
