@@ -5,5 +5,5 @@ metadata:
   namespace: itinventory-devops
 data:
   SPRING_PROFILES_ACTIVE: "docker"
-  SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-service:3306/itinventory"
+  SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-service:3306/itinventory_equip"
   SERVER_PORT: "8081"
