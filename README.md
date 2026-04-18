@@ -205,6 +205,18 @@ ITInventory
 - exportação versionada do dashboard em JSON
 - evolução da camada de observabilidade e automação
 
+## Proposta de Esteira CI/CD
+
+Como evolução da arquitetura do projeto, foi definida uma proposta de implementação de uma esteira de **CI/CD** (Continuous Integration and Continuous Delivery) com o objetivo de automatizar e padronizar o fluxo de entrega da aplicação. Essa proposta foi pensada para reduzir atividades manuais no processo de build, geração de imagem Docker, publicação no Docker Hub e implantação dos recursos no ambiente Kubernetes, tornando a entrega mais organizada, rastreável e aderente às boas práticas de DevOps.
+
+A estrutura planejada para essa esteira considera a separação do processo em etapas bem definidas, incluindo: build da aplicação Spring Boot, validação da aplicação, criação e publicação da imagem Docker, deploy dos manifests Kubernetes e disponibilização dos componentes de observabilidade, como Prometheus e Grafana.
+
+Esse modelo busca centralizar em um único fluxo automatizado as atividades que atualmente podem exigir intervenções manuais, aumentando a padronização do processo de entrega. Para essa finalidade, foi elaborado o arquivo `pipeline-ci-cd.yml`, contendo a proposta técnica da automação da esteira.
+
+Entretanto, essa implementação ainda não foi efetivamente colocada em operação no projeto, pois o workflow completo ainda não passou por validação prática em ambiente de execução. Por esse motivo, o disparo automático por `push` na branch principal foi mantido desabilitado no arquivo, permitindo que a proposta permaneça documentada sem impactar a esteira atualmente utilizada.
+
+Dessa forma, a esteira de CI/CD deve ser entendida, neste momento, como uma proposta de evolução do projeto, voltada à automação futura do ciclo de entrega. Sua inclusão no repositório demonstra o planejamento da solução e a preocupação em estruturar uma arquitetura mais madura de integração e entrega contínua, mesmo que sua ativação definitiva ainda dependa de testes, ajustes e validação operacional.
+
 ## Autor
 
 Projeto mantido por **Claudio Almeida**.
