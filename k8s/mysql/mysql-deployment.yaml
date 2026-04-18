@@ -28,7 +28,7 @@ spec:
             - name: MYSQL_ROOT_PASSWORD
               value: "root"
             - name: MYSQL_DATABASE
-              value: "itinventory"
+              value: "itinventory_equip"
           resources:
             requests:
               cpu: "250m"

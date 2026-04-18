@@ -1,0 +1,175 @@
+name: ITInventory Full CI-CD Pipeline
+
+on:
+  # Ativar depois para testes iniciais, a estrutura abaixo not foi validada
+  #push:
+  # branches:
+  #    - main
+  workflow_dispatch:
+
+concurrency:
+  group: itinventory-main
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ccaalmeida/itinventory-backend-devops
+  NAMESPACE: itinventory-devops
+  DEPLOYMENT_NAME: itinventory-backend
+  CONTAINER_NAME: backend
+  JAVA_VERSION: '21'
+
+jobs:
+  build_and_test:
+    name: Build e Testes
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Permissão no Maven Wrapper
+        run: chmod +x mvnw
+
+      - name: Executar build e testes
+        run: ./mvnw clean verify
+
+      - name: Definir tag da imagem
+        id: meta
+        run: echo "image_tag=$(date +'%Y-%m-%d')-${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Publicar artefato JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+  build_and_push_image:
+    name: Build e Push da Imagem Docker
+    runs-on: ubuntu-latest
+    needs: build_and_test
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build e push da imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ needs.build_and_test.outputs.image_tag }}
+            ${{ env.IMAGE_NAME }}:latest
+
+  deploy_infra_k8s:
+    name: Deploy da Infraestrutura Kubernetes
+    runs-on: self-hosted
+    needs: build_and_push_image
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Verificar cluster Kubernetes
+        run: |
+          kubectl get nodes
+          kubectl get ns
+
+      - name: Aplicar namespace
+        run: kubectl apply -f k8s/00-namespace.yaml
+
+      - name: Aplicar acesso administrativo
+        run: |
+          kubectl apply -f k8s/access/serviceaccount.yaml
+          kubectl apply -f k8s/access/clusterrolebinding.yaml
+
+      - name: Aplicar configurações do backend
+        run: |
+          kubectl apply -f k8s/config/backend-configmap.yaml
+          kubectl apply -f k8s/config/backend-secret.yaml
+
+      - name: Aplicar MySQL
+        run: |
+          kubectl apply -f k8s/mysql/mysql-pvc.yaml
+          kubectl apply -f k8s/mysql/mysql-deployment.yaml
+          kubectl apply -f k8s/mysql/mysql-service.yaml
+
+      - name: Aplicar Prometheus
+        run: |
+          kubectl apply -f k8s/prometheus/prometheus-configmap.yaml
+          kubectl apply -f k8s/prometheus/prometheus-pvc.yaml
+          kubectl apply -f k8s/prometheus/prometheus-deployment.yaml
+          kubectl apply -f k8s/prometheus/prometheus-service.yaml
+
+      - name: Aplicar Grafana
+        run: |
+          kubectl apply -f k8s/grafana/grafana-deployment.yaml
+          kubectl apply -f k8s/grafana/grafana-service.yaml
+
+  deploy_backend:
+    name: Deploy do Backend
+    runs-on: self-hosted
+    needs:
+      - build_and_test
+      - deploy_infra_k8s
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Aplicar deployment e service do backend
+        run: |
+          kubectl apply -f k8s/backend/backend-deployment.yaml
+          kubectl apply -f k8s/backend/backend-service.yaml
+
+      - name: Atualizar imagem do backend
+        run: |
+          kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
+            ${{ env.CONTAINER_NAME }}=${{ env.IMAGE_NAME }}:${{ needs.build_and_test.outputs.image_tag }} \
+            -n ${{ env.NAMESPACE }}
+
+      - name: Acompanhar rollout
+        run: |
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
+
+  validate_environment:
+    name: Validação Final do Ambiente
+    runs-on: self-hosted
+    needs: deploy_backend
+
+    steps:
+      - name: Validar recursos
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          kubectl get svc -n ${{ env.NAMESPACE }}
+          kubectl get deployments -n ${{ env.NAMESPACE }}
+
+      - name: Exibir URLs de acesso
+        run: |
+          echo "Backend:"
+          minikube service backend-service -n ${{ env.NAMESPACE }} --url
+
+          echo "Grafana:"
+          minikube service grafana-service -n ${{ env.NAMESPACE }} --url
+
+          echo "Prometheus:"
+          minikube service prometheus-service -n ${{ env.NAMESPACE }} --url
